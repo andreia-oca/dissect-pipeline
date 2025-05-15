@@ -18,8 +18,9 @@ target-query --list --json  | jq .loaders
 Useful commands:
 
 ```shell
-target-info -q image.qcow2 --json
-target-query -q image.qcow2 -f hostname,domain,os,version,ips
-target-query -q image.qcow2 -f users | rdump -F hostname,name -C
-target-shell -q image.qcow2
+target-info -q targets/image.qcow2 --json
+target-query -q targets/image.qcow2 -f hostname,domain,os,version,ips
+target-query -q targets/image.qcow2 -f users | rdump -F hostname,name -C
+target-query -q targets/image.qcow2 -f walkfs --limit 50 | rdump -F path,mode,size,mtime -m csv
+target-shell -q targets/image.qcow2
 ```
