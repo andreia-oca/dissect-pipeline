@@ -24,3 +24,18 @@ target-query -q targets/image.qcow2 -f users | rdump -F hostname,name -C
 target-query -q targets/image.qcow2 -f walkfs --limit 50 | rdump -F path,mode,size,mtime -m csv
 target-shell -q targets/image.qcow2
 ```
+
+## Analyzing a qcow2 image from honeypot
+
+Investigate the following aspects of the image:
+- ssh configs
+- users, logins, passwords
+- cron jobs
+
+
+```shell
+target-info -q targets/image.qcow2 --json
+target-query -q targets/image.qcow2 -f ssh | rdump -J | jq
+target-query -q targets/image.qcow2 -f users | rdump -J | jq
+target-query -q targets/image.qcow2 -f cronjobs | rdump -J | jq
+```
