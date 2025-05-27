@@ -2,10 +2,12 @@ import json
 from pathlib import Path
 from dissect.target import Target
 
+
 PATHS = [
     "/tmp",
     "/var/log/ffiles",
 ]
+
 
 def analyze_image(target_path: Path):
     target = Target.open(target_path)
@@ -14,15 +16,23 @@ def analyze_image(target_path: Path):
     install_date = target.install_date
     activity = target.activity
 
-    # TODO: Dump files to be able to compute hashes
-    # TODO: Compute hashes for files
+    users = target.users()
+    home_paths: list[str] = [
+        str(user.home) for user in users if user.uid > 1000 and user.name != "nobody" and user.home is not None
+    ]
+    paths = PATHS + home_paths
 
     files = [
         {
-            "path": str(record.path),
+            "path": entry.path,
+            "md5": entry.md5(),
+            "sha1": entry.sha1(),
+            "sha256": entry.sha256(),
         }
-        for path in PATHS
-        for record in target.walkfs(path)
+        for fs in target.filesystems
+        for scan_path in paths
+        for _, _, filenames in fs.walk_ext(scan_path)
+        for entry in filenames
     ]
 
     return {
@@ -56,4 +66,3 @@ def analyze_images_from_directory(directory: str, output_directory: str = "./out
 if __name__ == "__main__":
     targets_directory = "./targets"
     analysis_results = analyze_images_from_directory(targets_directory)
-    # print(json.dumps(analysis_results, indent=2))
