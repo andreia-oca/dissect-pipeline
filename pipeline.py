@@ -1,3 +1,4 @@
+import argparse
 import json
 from pathlib import Path
 from datetime import datetime
@@ -53,8 +54,19 @@ def query_malware_database(hash_value: str):
 
 
 if __name__ == "__main__":
-    path = Path(TARGETS_DIRECTORY)
-    snapshots = map_files_to_mtime(path)[:SNAPSHOT_NO]
+    parser = argparse.ArgumentParser(description="Filter snapshot files by size and date.")
+    parser.add_argument("directory", type=str, help="Path to the target snapshots directory.")
+    args = parser.parse_args()
+
+    path = Path(args.directory)
+    if not path.exists():
+        print(f"Directory {path} does not exist.")
+        exit(1)
+
+    min_size = 100 * 1024 * 1024  # Minimum size of 100 MB
+    start_date = datetime(2025, 5, 1)  # Start date
+    end_date = datetime(2025, 5, 16)  # End date
+    snapshots = filter_snapshots(path, min_size, start_date, end_date)
 
     for s in snapshots:
         output_file = Path(OUTPUT_DIRECTORY) / f"{s[0].stem}_analysis.json"
