@@ -1,10 +1,22 @@
 import argparse
+import logging
 import json
 from pathlib import Path
 from datetime import datetime
 from analyze_snapshots import analyze_image
 from qcow2 import QCOW2Helper
 from virus_total import VirusTotalClient
+
+logging.basicConfig(
+    level=logging.INFO,  # Change to DEBUG for more detailed output
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # Log to console
+        logging.FileHandler("pipeline.log"),  # Log to a file
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_DIRECTORY = "./pipeline_output"
 
@@ -60,42 +72,42 @@ if __name__ == "__main__":
 
     path = Path(args.directory)
     if not path.exists():
-        print(f"Directory {path} does not exist.")
+        logger.info(f"Directory {path} does not exist.")
         exit(1)
 
     min_size = 100 * 1024 * 1024  # Minimum size of 100 MB
     start_date = datetime(2025, 5, 1)  # Start date
-    end_date = datetime(2025, 5, 16)  # End date
+    end_date = datetime(2025, 5, 30)  # End date
     snapshots = filter_snapshots(path, min_size, start_date, end_date)
 
     for s in snapshots:
         output_file = Path(OUTPUT_DIRECTORY) / f"{s[0].stem}_analysis.json"
         if output_file.exists():
-            print(f"Analysis for {s[0]} already exists. Skipping...")
+            logger.info(f"Analysis for {s[0]} already exists. Skipping...")
             continue
 
-        print(f"File: {s[0]}, Last Modified: {s[1]}")
+        logger.info(f"File: {s[0]}, Last Modified: {s[1]}")
 
         # Convert to a QCOW2 standalone
-        print(f"Creating standalone image for: {s[0]}")
+        logger.info(f"Creating standalone image for: {s[0]}")
         standalone_path = QCOW2Helper.create_standalone_image(s[0])
-        print("Standalone image created.")
+        logger.info("Standalone image created.")
 
         # Analyze the snapshot
-        print(f"Analyzing snapshot: {s[0]}")
+        logger.info(f"Analyzing snapshot: {s[0]}")
         indicators = analyze_image(standalone_path)
-        print(f"Length of files: {len(indicators.get('files', []))}")
+        logger.info(f"Number of found files: {len(indicators.get('files', []))}")
 
         output_file = Path(OUTPUT_DIRECTORY) / f"{s[0].stem}_analysis.json"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         with output_file.open("w") as f:
             json.dump(indicators, f, indent=2)
 
-        print(f"Analysis completed for {s[0]}")
+        logger.info(f"Analysis completed for {s[0]}")
 
         # Cleanup the standalone image
         QCOW2Helper.cleanup(standalone_path)
-        print(f"Temporary standalone image {standalone_path} removed.")
+        logger.info(f"Temporary standalone image {standalone_path} removed.")
 
         # Deduplicate the analysis results based on sha256 hash
         seen = set()
@@ -104,7 +116,7 @@ if __name__ == "__main__":
             if (lambda h: not (h in seen or seen.add(h)))(f.get("sha256"))
         ]
         indicators["files"] = unique_files
-        print(f"Length of files after deduplication: {len(unique_files)}")
+        logger.info(f"Number of files after deduplication: {len(unique_files)}")
 
         output_file = Path(OUTPUT_DIRECTORY) / f"unique_{s[0].stem}_analysis.json"
         with output_file.open("w") as f:
@@ -114,9 +126,10 @@ if __name__ == "__main__":
         reports = []
         for file in indicators.get("files", []):
             if "sha256" in file:
-                print(f"Querying malware database for SHA256: {file['sha256']}")
+                logger.info(f"Querying malware database for SHA256: {file['sha256']}")
                 vt_result = query_malware_database(file["sha256"])
                 if vt_result:
+                    logger.info(f"Found VT report for {file['sha256']}")
                     reports.append(vt_result)
 
         if reports != []:
@@ -124,4 +137,4 @@ if __name__ == "__main__":
             with output_file.open("w") as f:
                 json.dump(reports, f, indent=2)
 
-        print("=========================================================")
+        logger.info("=========================================================")
