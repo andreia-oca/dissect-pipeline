@@ -176,4 +176,6 @@ cython_debug/
 targets/
 baseline_targets/
 output/
+*_output/
 snapshots/
+experiments/

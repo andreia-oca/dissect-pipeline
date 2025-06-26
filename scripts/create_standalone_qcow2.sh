@@ -15,7 +15,6 @@ if [ ! -f "$base_img_path" ]; then
     exit 1
 fi
 
-
 # Check if the snapshot image exists
 if [ ! -f "$snapshot_img_path" ]; then
     echo "Snapshot image '$snapshot_img_path' does not exist."
