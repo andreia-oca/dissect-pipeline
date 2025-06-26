@@ -6,26 +6,28 @@ from qcow2 import QCOW2Helper
 from virus_total import VirusTotalClient
 
 OUTPUT_DIRECTORY = "./pipeline_output"
-TARGETS_DIRECTORY = "./snapshots"
-SNAPSHOT_NO = 5
 
-def map_files_to_mtime(directory: Path):
+def filter_snapshots(directory: Path, min_size: int, start_date: datetime, end_date: datetime):
     """
-    Map files to their last modified time.
+    Filter snapshots that are larger than `min_size` and have a modified time within `start_date` and `end_date`.
     """
     if not directory.exists():
-        return None
+        return []
 
-    file_mtime_map = {}
+    valid_snapshots = []
     for file_path in directory.rglob("snapshot-*"):
-        if file_path.is_file():
-            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-            file_mtime_map[file_path] = mtime
+        if not file_path.is_file():
+            continue
 
-    # Sort the dictionary by mtime in descending order
-    file_mtime_map = sorted(file_mtime_map.items(), key=lambda item: item[1], reverse=True)
+        size = file_path.stat().st_size
+        mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
 
-    return file_mtime_map
+        if size >= min_size and start_date <= mtime <= end_date:
+            valid_snapshots.append((file_path, mtime))
+
+    valid_snapshots.sort(key=lambda x: x[1], reverse=True)
+
+    return valid_snapshots
 
 def query_malware_database(hash_value: str):
     client = VirusTotalClient()
